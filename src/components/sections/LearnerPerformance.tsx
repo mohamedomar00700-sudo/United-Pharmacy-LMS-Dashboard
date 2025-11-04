@@ -92,7 +92,8 @@ export const LearnerPerformance = ({ allData, selectedEmail, onLearnerSelect }: 
         return allData.filter(d => d.email === selectedEmail && d.postAssessmentScore > 0).map(d => ({ courseTitle: d.courseTitle, completionDate: d.completionDate, postAssessmentScore: d.postAssessmentScore }));
     }, [selectedEmail, allData]);
 
-    const courseTableHook = useDataTable(completedCoursesData, 'completionDate', 5);
+    // FIX: Explicitly provide the generic type to `useDataTable` to fix a TypeScript inference issue.
+    const courseTableHook = useDataTable<CompletedCourse>(completedCoursesData, 'completionDate', 5);
 
     const handleExport = () => {
         if (courseTableHook.sortedItems.length === 0) { alert("No data to export."); return; }
