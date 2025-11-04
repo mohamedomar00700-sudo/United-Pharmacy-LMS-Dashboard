@@ -2,54 +2,27 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>United Pharmacy LMS Dashboard</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      // On page load or when changing themes, best to add inline in `head` to avoid FOUC
-      if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-        document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
-      }
-
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            colors: {
-              'brand-primary': '#0072BC',   // Lighter Blue from logo
-              'brand-secondary': '#F58220', // Orange from logo
-              'brand-light': '#F3F7FA',     // A very light off-white/blue
-              'brand-dark': '#202A5B',      // Dark blue from logo background
-              'success': '#00A99D',      // Teal from logo
-              'warning': '#F58220',      // Orange from logo
-              'danger': '#dc3545',       // Standard red
-            },
-          },
-        },
-      }
-    </script>
-    <!-- Add Babel for in-browser TSX transformation -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script type="importmap">
 {
   "imports": {
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.552.0",
-    "recharts": "https://aistudiocdn.com/recharts@^3.3.0",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "jspdf": "https://esm.sh/jspdf@2.5.1",
-    "html2canvas": "https://esm.sh/html2canvas@1.4.1"
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.552.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.3.0",
+    "vite": "https://aistudiocdn.com/vite@^7.1.12",
+    "jspdf": "https://aistudiocdn.com/jspdf@^3.0.3",
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.0",
+    "html2canvas": "https://aistudiocdn.com/html2canvas@^1.4.1"
   }
 }
 </script>
 </head>
-  <body class="bg-brand-light dark:bg-gray-900">
+  <body>
     <div id="root"></div>
-    <!-- The `data-type="module"` attribute is crucial for Babel to handle ES module imports -->
-    <script type="text/babel" data-presets="react,typescript" data-type="module" src="./index.tsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
