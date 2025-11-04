@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Filters } from './Dashboard';
-import { MultiSelectFilter } from './MultiSelectFilter';
+import { Filters } from './Dashboard.tsx';
+import { MultiSelectFilter } from './MultiSelectFilter.tsx';
 import { X, RotateCcw, SlidersHorizontal, ChevronUp, ChevronDown } from 'lucide-react';
 
 interface FilterPanelProps {

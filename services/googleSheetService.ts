@@ -1,5 +1,6 @@
 
-import { TrainingRecord, CourseType } from '../types';
+
+import { TrainingRecord, CourseType } from '../types.ts';
 
 /**
  * Parses a CSV text string into an array of objects.

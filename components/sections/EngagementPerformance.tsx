@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
-import { TrainingRecord } from '../../types';
+import { TrainingRecord } from '../../types.ts';
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ZAxis, ReferenceLine, Label } from 'recharts';
-import { DashboardCard } from '../DashboardCard';
-import { useTheme } from '../../hooks/useTheme';
+import { DashboardCard } from '../DashboardCard.tsx';
+import { useTheme } from '../../hooks/useTheme.ts';
 
 interface EngagementPerformanceProps {
     data: TrainingRecord[];

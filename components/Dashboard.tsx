@@ -1,21 +1,21 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { TrainingRecord, CourseType } from '../types';
-import { fetchTrainingData } from '../services/googleSheetService';
-import { Sidebar } from './Sidebar';
-import { Overview } from './sections/Overview';
-import { BranchComparison } from './sections/BranchComparison';
-import { CourseAnalysis } from './sections/CourseAnalysis';
-import { LearnerPerformance } from './sections/LearnerPerformance';
-import { TrendAnalysis } from './sections/TrendAnalysis';
-import { EngagementPerformance } from './sections/EngagementPerformance';
-import { FilterPanel } from './FilterPanel';
+import { TrainingRecord, CourseType } from '../types.ts';
+import { fetchTrainingData } from '../services/googleSheetService.ts';
+import { Sidebar } from './Sidebar.tsx';
+import { Overview } from './sections/Overview.tsx';
+import { BranchComparison } from './sections/BranchComparison.tsx';
+import { CourseAnalysis } from './sections/CourseAnalysis.tsx';
+import { LearnerPerformance } from './sections/LearnerPerformance.tsx';
+import { TrendAnalysis } from './sections/TrendAnalysis.tsx';
+import { EngagementPerformance } from './sections/EngagementPerformance.tsx';
+import { FilterPanel } from './FilterPanel.tsx';
 import { BookOpen, BarChart2, TrendingUp, Users, Target, GitCompareArrows, Trophy, ShieldAlert, Download, FileSpreadsheet } from 'lucide-react';
-import { Leaderboard } from './sections/Leaderboard';
-import { ActionableInsights } from './sections/ActionableInsights';
-import { ComparisonTool } from './sections/ComparisonTool';
-import { ThemeSwitcher } from './ThemeSwitcher';
-import { ExportButton } from './ExportButton';
-import { ExportCsvButton } from './ExportCsvButton';
+import { Leaderboard } from './sections/Leaderboard.tsx';
+import { ActionableInsights } from './sections/ActionableInsights.tsx';
+import { ComparisonTool } from './sections/ComparisonTool.tsx';
+import { ThemeSwitcher } from './ThemeSwitcher.tsx';
+import { ExportButton } from './ExportButton.tsx';
+import { ExportCsvButton } from './ExportCsvButton.tsx';
 
 // --- CONFIGURATION ---
 // IMPORTANT: You must publish your Google Sheet to the web as a CSV and paste the public URL here.

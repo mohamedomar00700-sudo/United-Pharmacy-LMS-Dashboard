@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { TrainingRecord } from '../../types';
-import { DashboardCard } from '../DashboardCard';
+import { TrainingRecord } from '../../types.ts';
+import { DashboardCard } from '../DashboardCard.tsx';
 import { ChevronsRight, User, FileText } from 'lucide-react';
 
 interface ComparisonToolProps {

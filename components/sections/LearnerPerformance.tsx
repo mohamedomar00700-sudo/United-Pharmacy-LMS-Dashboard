@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { TrainingRecord } from '../../types';
+import { TrainingRecord } from '../../types.ts';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { DashboardCard } from '../DashboardCard';
-import { useTheme } from '../../hooks/useTheme';
+import { DashboardCard } from '../DashboardCard.tsx';
+import { useTheme } from '../../hooks/useTheme.ts';
 import { X, Star, ChevronLeft, ChevronRight, ArrowDown, ArrowUp, FileSpreadsheet } from 'lucide-react';
-import { DataTable, Column } from '../DataTable';
-import useDataTable from '../../hooks/useDataTable';
-import { exportToCsv } from '../../services/exportService';
+import { DataTable, Column } from '../DataTable.tsx';
+import useDataTable from '../../hooks/useDataTable.ts';
+import { exportToCsv } from '../../services/exportService.ts';
 
 interface LearnerPerformanceProps {
     allData: TrainingRecord[];

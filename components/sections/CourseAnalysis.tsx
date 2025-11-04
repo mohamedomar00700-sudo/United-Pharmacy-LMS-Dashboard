@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { TrainingRecord, CourseType } from '../../types';
+import { TrainingRecord, CourseType } from '../../types.ts';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
-import { DashboardCard } from '../DashboardCard';
-import { useTheme } from '../../hooks/useTheme';
-import { Filters } from '../Dashboard';
+import { DashboardCard } from '../DashboardCard.tsx';
+import { useTheme } from '../../hooks/useTheme.ts';
+import { Filters } from '../Dashboard.tsx';
 
 interface CourseAnalysisProps {
     data: TrainingRecord[];

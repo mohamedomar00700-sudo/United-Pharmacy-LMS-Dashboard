@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from 'react';
-import { TrainingRecord } from '../../types';
+import { TrainingRecord } from '../../types.ts';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Brush } from 'recharts';
-import { DashboardCard } from '../DashboardCard';
-import { useTheme } from '../../hooks/useTheme';
+import { DashboardCard } from '../DashboardCard.tsx';
+import { useTheme } from '../../hooks/useTheme.ts';
 
 interface TrendAnalysisProps {
     data: TrainingRecord[];

@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
-import { TrainingRecord } from '../../types';
-import { DashboardCard } from '../DashboardCard';
-import { DataTable, Column } from '../DataTable';
+import { TrainingRecord } from '../../types.ts';
+import { DashboardCard } from '../DashboardCard.tsx';
+import { DataTable, Column } from '../DataTable.tsx';
 import { Trophy } from 'lucide-react';
-import useDataTable from '../../hooks/useDataTable';
+import useDataTable from '../../hooks/useDataTable.ts';
 
 const RankCell: React.FC<{ rank: number }> = ({ rank }) => {
     const rankColors = [

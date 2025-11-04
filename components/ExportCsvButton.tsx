@@ -1,6 +1,6 @@
 import React from 'react';
 import { FileSpreadsheet } from 'lucide-react';
-import { exportToCsv } from '../services/exportService';
+import { exportToCsv } from '../services/exportService.ts';
 
 interface ExportCsvButtonProps {
   data: Record<string, any>[];

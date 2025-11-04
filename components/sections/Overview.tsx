@@ -1,8 +1,8 @@
 import React, { useMemo } from 'react';
-import { TrainingRecord } from '../../types';
-import { KpiCard } from '../KpiCard';
+import { TrainingRecord } from '../../types.ts';
+import { KpiCard } from '../KpiCard.tsx';
 import { Users, CheckCircle, UserX, TrendingUp } from 'lucide-react';
-import { Filters } from '../Dashboard';
+import { Filters } from '../Dashboard.tsx';
 
 interface OverviewProps {
     data: TrainingRecord[];
