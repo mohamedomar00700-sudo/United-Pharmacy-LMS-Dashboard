@@ -1,0 +1,5 @@
+{
+  "name": "United Pharmacy LMS Dashboard",
+  "description": "An interactive dashboard for United Pharmacy to visualize LMS training data. It provides insights into learner progress, course effectiveness, and branch performance.",
+  "requestFramePermissions": []
+}
