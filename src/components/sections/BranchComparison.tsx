@@ -54,7 +54,6 @@ export const BranchComparison = ({ data, allData, filters, setFilters }: BranchC
             stats.recordCount++;
         });
         const aggregatedData = Array.from(branchMap.entries()).map(([branch, stats]) => ({ name: branch, displayName: branch.replace(/ Pharmacy| Pharma| Health| Meds| Drugs/g, ''), completionRate: stats.recordCount > 0 ? stats.completionTotal / stats.recordCount : 0, quizScore: stats.recordCount > 0 ? stats.scoreTotal / stats.recordCount : 0, recordCount: stats.recordCount }));
-        // FIX: Cast sorted values to number to satisfy TypeScript's strict arithmetic operation rules.
         const sortedData = aggregatedData.sort((a, b) => (b[sortBy as keyof typeof b] as number) - (a[sortBy as keyof typeof a] as number));
         
         if(viewType === 'top5') return sortedData.slice(0, 5);

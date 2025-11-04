@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from 'react';
-// FIX: Import React to resolve namespace error for React.ChangeEvent
 import React from 'react';
 
 type SortDirection = 'ascending' | 'descending';

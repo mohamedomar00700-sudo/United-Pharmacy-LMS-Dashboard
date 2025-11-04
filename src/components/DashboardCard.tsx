@@ -2,7 +2,6 @@ import React from 'react';
 
 interface DashboardCardProps {
     title: string;
-    // FIX: Make children optional to allow DashboardCard to be used without children in some cases.
     children?: React.ReactNode;
     className?: string;
     actions?: React.ReactNode;
