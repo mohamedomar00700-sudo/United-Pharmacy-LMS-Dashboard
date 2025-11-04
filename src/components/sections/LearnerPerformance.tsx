@@ -92,7 +92,8 @@ export const LearnerPerformance = ({ allData, selectedEmail, onLearnerSelect }: 
         return allData.filter(d => d.email === selectedEmail && d.postAssessmentScore > 0).map(d => ({ courseTitle: d.courseTitle, completionDate: d.completionDate, postAssessmentScore: d.postAssessmentScore }));
     }, [selectedEmail, allData]);
 
-    const courseTableHook = useDataTable(completedCoursesData, 'completionDate', 5);
+    // FIX: Explicitly cast the initial sort key to `keyof CompletedCourse` to prevent TypeScript from incorrectly narrowing the generic type of the hook, which caused issues with the `requestSort` function.
+    const courseTableHook = useDataTable(completedCoursesData, 'completionDate' as keyof CompletedCourse, 5);
 
     const handleExport = () => {
         if (courseTableHook.sortedItems.length === 0) { alert("No data to export."); return; }
