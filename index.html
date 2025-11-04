@@ -49,7 +49,7 @@
 </head>
   <body class="bg-brand-light dark:bg-gray-900">
     <div id="root"></div>
-    <!-- Changed script type to "text/babel" to enable transformation -->
-    <script type="text/babel" data-presets="react,typescript" src="./index.tsx"></script>
+    <!-- The `data-type="module"` attribute is crucial for Babel to handle ES module imports -->
+    <script type="text/babel" data-presets="react,typescript" data-type="module" src="./index.tsx"></script>
   </body>
 </html>
