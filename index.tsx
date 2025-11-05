@@ -428,8 +428,11 @@ const Overview = ({ data, allData, onNavigate }) => {
         
         const totalLearners = new Set(data.map(d => d.traineeName)).size;
         const avgCompletion = data.reduce((acc, curr) => acc + curr.completionRate, 0) / data.length;
+        
         const activeLearners = new Set(data.filter(d => d.completionRate > 0).map(d => d.traineeName)).size;
-        const inactiveLearners = totalLearners - activeLearners;
+        const allLearnersInPeriod = new Set(data.map(d => d.traineeName));
+        const inactiveLearners = allLearnersInPeriod.size - activeLearners;
+
         const completedTrainings = data.filter(d => d.postAssessmentScore > 0);
         const preScores = completedTrainings.reduce((acc, curr) => acc + curr.preAssessmentScore, 0);
         const postScores = completedTrainings.reduce((acc, curr) => acc + curr.postAssessmentScore, 0);
@@ -1006,25 +1009,23 @@ const FilterPanel = ({ filters, setFilters, options }) => {
     const handleMultiSelectChange = (filterName, selected) => setLocalFilters(prev => ({ ...prev, [filterName]: selected }));
     const handleDateChange = (type, e) => {
         const dateValue = e.target.value;
+        setActiveQuickSelect(null);
         if (!dateValue) {
             setLocalFilters(prev => ({ ...prev, timePeriodFilter: { ...prev.timePeriodFilter, [type]: null } }));
-            setActiveQuickSelect(null);
             return;
         }
 
-        const newDate = new Date(dateValue);
-        // Adjust for timezone offset
-        const timezoneOffset = newDate.getTimezoneOffset() * 60000;
-        let adjustedDate = new Date(newDate.getTime() + timezoneOffset);
-
+        const [year, month, day] = dateValue.split('-').map(Number);
+        const date = new Date(Date.UTC(year, month - 1, day));
+        
+        let adjustedDate;
         if (type === 'start') {
-            adjustedDate.setHours(0, 0, 0, 0);
+            adjustedDate = date;
         } else { // 'end'
-            adjustedDate = new Date(adjustedDate.getTime() + (24 * 60 * 60 * 1000 - 1));
+             adjustedDate = new Date(date.getTime() + (24 * 60 * 60 * 1000 - 1));
         }
         
         setLocalFilters(prev => ({ ...prev, timePeriodFilter: { ...prev.timePeriodFilter, [type]: adjustedDate } }));
-        setActiveQuickSelect(null);
     };
     const handleQuickSelect = (period) => {
         const { start, end } = getQuickSelectDates(period);
@@ -1033,7 +1034,7 @@ const FilterPanel = ({ filters, setFilters, options }) => {
     };
     const handleClearDates = () => { setLocalFilters(prev => ({ ...prev, timePeriodFilter: { start: null, end: null } })); setActiveQuickSelect(null); };
     const handleResetFilters = () => { setFilters({ branchFilter: [], districtHeadFilter: [], supervisorFilter: [], courseFilter: [], courseTypeFilter: [], timePeriodFilter: { start: null, end: null } }); setActiveQuickSelect(null); };
-    const formatDateForInput = date => { if (!date || isNaN(date.getTime())) return ''; try { return date.toISOString().split('T')[0]; } catch (e) { return ''; } };
+    const formatDateForInput = date => { if (!date || isNaN(date.getTime())) return ''; try { return new Date(date.getTime() - (date.getTimezoneOffset() * 60000)).toISOString().split('T')[0]; } catch (e) { return ''; } };
     const areFiltersActive = () => filters.branchFilter.length > 0 || filters.districtHeadFilter.length > 0 || filters.supervisorFilter.length > 0 || filters.courseFilter.length > 0 || filters.courseTypeFilter.length > 0 || filters.timePeriodFilter.start !== null || filters.timePeriodFilter.end !== null;
     const getActiveFilterSummary = () => {
         const active = [];
@@ -1073,9 +1074,18 @@ const Sidebar = ({ activeSection, setActiveSection, sections }) => {
         <aside className="w-64 bg-brand-dark text-white flex-col hidden sm:flex">
             <div className="sidebar-logo p-4 border-b border-gray-700">
               <img 
-                src="https://raw.githubusercontent.com/mohamedomar00700-sudo/United-Pharmacy-LMS-Dashboard/main/public/logo.jpeg" 
+                src="https://cdn.jsdelivr.net/gh/mohamedomar00700-sudo/United-Pharmacy-LMS-Dashboard@main/public/logo.jpeg" 
                 alt="United Pharmacy Logo" 
-                style={{width: '140px', height: 'auto', display: 'block', margin: '10px auto'}} 
+                width="120" 
+                style={{display:'block', margin:'10px auto'}}
+                onError={(e) => {
+                    const fallbackSrc = 'https://raw.githubusercontent.com/mohamedomar00700-sudo/United-Pharmacy-LMS-Dashboard/main/public/logo.jpeg';
+                    const target = e.currentTarget;
+                    if (target.src !== fallbackSrc) {
+                        target.src = fallbackSrc;
+                    }
+                    target.onerror = null; // Prevent infinite loops if the fallback also fails
+                }}
               />
             </div>
             <nav className="flex-1 p-4">
