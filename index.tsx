@@ -224,8 +224,39 @@ const useDataTable = (items, initialSortKey = null, rowsPerPage = 10) => {
 
 // ========= COMPONENT DEFINITIONS =========
 
-// FIX: Added default values for optional props to avoid type errors.
-const DashboardCard = ({ title, children, className = "", actions = null }) => {
+const CustomSparklineTooltip = ({ active = false, payload = [] }) => {
+    if (active && payload && payload.length) {
+        const data = payload[0].payload;
+        const date = data.date ? new Date(data.date).toLocaleDateString('en-CA') : 'N/A';
+        let metricName = payload[0].name || "Value";
+        
+        if (metricName === 'Total Learners') {
+            metricName = 'Total Learners (to date)';
+        } else if (metricName === 'Average Completion Rate') {
+            metricName = 'Avg Completion (to date)';
+        } else if (metricName === '% Improvement') {
+            metricName = '% Improvement (to date)';
+        }
+
+        const isPercentage = metricName.toLowerCase().includes('rate') || metricName.toLowerCase().includes('improvement') || metricName.toLowerCase().includes('completion');
+        const formattedValue = isPercentage 
+            ? `${Number(data.value).toFixed(1)}%`
+            : Math.round(data.value);
+
+        return (
+            <div className="bg-white dark:bg-gray-900 p-2 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg text-xs" style={{ pointerEvents: 'none' }}>
+                <p className="font-bold text-gray-800 dark:text-gray-200">{date}</p>
+                <p className="text-gray-600 dark:text-gray-400">
+                    <span className="font-semibold" style={{ color: payload[0].stroke }}>{metricName}: </span>
+                    <strong>{formattedValue}</strong>
+                </p>
+            </div>
+        );
+    }
+    return null;
+};
+
+const DashboardCard = ({ title, children = null, className = "", actions = null }) => {
     return (
         <div className={`bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md transition-all hover:shadow-lg dark:border dark:border-gray-700 ${className}`}>
             <div className="flex justify-between items-center mb-4 border-b dark:border-gray-600 pb-2">
@@ -237,7 +268,6 @@ const DashboardCard = ({ title, children, className = "", actions = null }) => {
     );
 };
 
-// FIX: Added default values for optional props to avoid type errors where they are not provided.
 const KpiCard = ({ title, value, icon, change, changeColor, tooltip, sparklineData, onClick = null }) => {
     const cardContent = (
          <div className="bg-white dark:bg-gray-800 p-5 rounded-xl shadow-md flex items-center space-x-4 transition-all hover:shadow-lg hover:scale-105 dark:border dark:border-gray-700 w-full h-full" title={tooltip}>
@@ -250,8 +280,22 @@ const KpiCard = ({ title, value, icon, change, changeColor, tooltip, sparklineDa
              {sparklineData && sparklineData.length > 1 && (
                 <div className="w-24 h-12">
                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={sparklineData}>
-                            <Line type="monotone" dataKey="value" stroke={changeColor === 'text-success' ? '#00A99D' : changeColor === 'text-danger' ? '#dc3545' : '#8884d8'} strokeWidth={2} dot={false} />
+                        <LineChart data={sparklineData} margin={{ top: 5, right: 0, left: 0, bottom: 5 }}>
+                            <Tooltip 
+                                content={<CustomSparklineTooltip />} 
+                                cursor={{ stroke: 'gray', strokeDasharray: '3 3' }}
+                                position={{ y: -40 }}
+                                offset={10}
+                            />
+                            <Line 
+                                type="monotone" 
+                                dataKey="value" 
+                                name={title}
+                                stroke={changeColor === 'text-success' ? '#00A99D' : changeColor === 'text-danger' ? '#dc3545' : '#8884d8'} 
+                                strokeWidth={2} 
+                                dot={false}
+                                activeDot={{ r: 4, strokeWidth: 2 }}
+                            />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
@@ -348,7 +392,6 @@ const MultiSelectFilter = ({ label, options, selected, onChange }) => {
     );
 };
 
-// FIX: Made rowClassName prop optional with a default value of null.
 const DataTable = ({ columns, rowClassName = null, hook }) => {
   const { paginatedItems, requestSort, handleSearchChange, sortConfig, searchTerm, currentPage, pageCount, nextPage, prevPage, totalItems } = hook;
   const getSortIcon = (key) => {
@@ -374,22 +417,19 @@ const DataTable = ({ columns, rowClassName = null, hook }) => {
 };
 
 const Overview = ({ data, allData, onNavigate }) => {
-    const getTrendData = (records, key, days = 30) => {
-        const sorted = [...records].sort((a,b) => a.completionDate.getTime() - b.completionDate.getTime());
-        if (sorted.length < 2) return [];
-        const trend = sorted.slice(-days).map(d => ({ value: d[key] }));
-        return trend.length > 1 ? trend : [];
-    }
     const companyAvgs = useMemo(() => {
         if (allData.length === 0) return { avgCompletion: 0 };
         const avgCompletion = allData.reduce((acc, curr) => acc + curr.completionRate, 0) / allData.length;
         return { avgCompletion };
     }, [allData]);
+
     const stats = useMemo(() => {
         if (data.length === 0) return { totalLearners: 0, avgCompletion: 0, activeLearners: 0, inactiveLearners: 0, improvement: 0, avgCompletionChange: { text: 'N/A', color: 'text-gray-500 dark:text-gray-400' }, sparklines: { learners: [], completion: [], improvement: [] } };
+        
         const totalLearners = new Set(data.map(d => d.traineeName)).size;
         const avgCompletion = data.reduce((acc, curr) => acc + curr.completionRate, 0) / data.length;
         const activeLearners = new Set(data.filter(d => d.completionRate > 0).map(d => d.traineeName)).size;
+        const inactiveLearners = totalLearners - activeLearners;
         const completedTrainings = data.filter(d => d.postAssessmentScore > 0);
         const preScores = completedTrainings.reduce((acc, curr) => acc + curr.preAssessmentScore, 0);
         const postScores = completedTrainings.reduce((acc, curr) => acc + curr.postAssessmentScore, 0);
@@ -397,23 +437,71 @@ const Overview = ({ data, allData, onNavigate }) => {
         const diff = avgCompletion - companyAvgs.avgCompletion;
         const changeText = diff.toFixed(1) === '0.0' ? 'Matches company avg' : `${diff > 0 ? '+' : ''}${diff.toFixed(1)}% vs company avg`;
         const changeColor = diff > 0.1 ? 'text-success' : diff < -0.1 ? 'text-danger' : 'text-gray-500 dark:text-gray-400';
-        const sparklines = {
-            learners: getTrendData(data, 'id'),
-            completion: getTrendData(data, 'completionRate'),
-            improvement: getTrendData(data.map(d => ({...d, improvement: d.preAssessmentScore > 0 ? ((d.postAssessmentScore - d.preAssessmentScore)/d.preAssessmentScore)*100 : 0})), 'improvement')
+
+        const calculateSparklineData = (records, metric) => {
+            if (records.length < 2) return [];
+            const sortedRecords = [...records].sort((a, b) => a.completionDate.getTime() - b.completionDate.getTime());
+
+            if (metric === 'learners') {
+                const dailyUniqueLearners = new Map();
+                const seenLearners = new Set();
+                sortedRecords.forEach(rec => {
+                    seenLearners.add(rec.traineeName);
+                    const dateKey = rec.completionDate.toISOString().split('T')[0];
+                    dailyUniqueLearners.set(dateKey, { date: new Date(dateKey), value: seenLearners.size });
+                });
+                return Array.from(dailyUniqueLearners.values());
+            }
+
+            if (metric === 'completion' || metric === 'improvement') {
+                const dailyAggregates = new Map();
+                sortedRecords.forEach(rec => {
+                    const dateKey = rec.completionDate.toISOString().split('T')[0];
+                    if (!dailyAggregates.has(dateKey)) {
+                        dailyAggregates.set(dateKey, { completionSum: 0, improvementSum: 0, recordCount: 0 });
+                    }
+                    const dayData = dailyAggregates.get(dateKey);
+                    dayData.recordCount++;
+                    dayData.completionSum += rec.completionRate;
+                    dayData.improvementSum += rec.preAssessmentScore > 0 ? ((rec.postAssessmentScore - rec.preAssessmentScore) / rec.preAssessmentScore) * 100 : 0;
+                });
+
+                const sortedDays = Array.from(dailyAggregates.entries())
+                    .map(([dateKey, dayData]) => ({ date: new Date(dateKey), ...dayData }))
+                    .sort((a, b) => a.date.getTime() - b.date.getTime());
+
+                let cumulativeSum = 0;
+                let cumulativeCount = 0;
+
+                return sortedDays.map(day => {
+                    if (metric === 'completion') {
+                        cumulativeSum += day.completionSum;
+                    } else { // improvement
+                        cumulativeSum += day.improvementSum;
+                    }
+                    cumulativeCount += day.recordCount;
+                    
+                    return { date: day.date, value: cumulativeSum / cumulativeCount };
+                });
+            }
+            return [];
         };
-        return { totalLearners, avgCompletion: Math.round(avgCompletion), activeLearners, inactiveLearners: totalLearners - activeLearners, improvement: Math.round(improvement), avgCompletionChange: { text: changeText, color: changeColor }, sparklines };
+
+        const sparklines = {
+            learners: calculateSparklineData(data, 'learners'),
+            completion: calculateSparklineData(data, 'completion'),
+            improvement: calculateSparklineData(data, 'improvement')
+        };
+        
+        return { totalLearners, avgCompletion: Math.round(avgCompletion), activeLearners, inactiveLearners, improvement: Math.round(improvement), avgCompletionChange: { text: changeText, color: changeColor }, sparklines };
     }, [data, companyAvgs]);
+
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* FIX: Added missing props change and changeColor to KpiCard call. */}
             <KpiCard title="Total Learners" value={stats.totalLearners} icon={<Users className="text-brand-primary" />} tooltip="Total unique trainees. Click to view leaderboards." onClick={() => onNavigate('leaderboard')} sparklineData={stats.sparklines.learners} change={null} changeColor="" />
-            {/* FIX: Added missing onClick prop to KpiCard call. */}
-            <KpiCard title="Average Completion Rate" value={`${stats.avgCompletion}%`} icon={<CheckCircle className="text-success" />} change={stats.avgCompletionChange.text} changeColor={stats.avgCompletionChange.color} tooltip="The average completion rate for all training records." sparklineData={stats.sparklines.completion} />
-            {/* FIX: Added missing props change, changeColor and sparklineData to KpiCard call. */}
+            <KpiCard title="Average Completion Rate" value={`${stats.avgCompletion}%`} icon={<CheckCircle className="text-success" />} change={stats.avgCompletionChange.text} changeColor={stats.avgCompletionChange.color} tooltip="The average completion rate for all training records." sparklineData={stats.sparklines.completion} onClick={null}/>
             <KpiCard title="Active vs Inactive Learners" value={`${stats.activeLearners} / ${stats.inactiveLearners}`} icon={<UserX className="text-warning" />} tooltip="Active learners have a completion rate > 0%. Click to view at-risk trainees." onClick={() => onNavigate('actionable-insights')} change={null} changeColor="" sparklineData={null} />
-            {/* FIX: Added missing onClick prop to KpiCard call. */}
-            <KpiCard title="% Improvement" value={`${stats.improvement}%`} icon={<TrendingUp className="text-brand-secondary" />} change={`Pre vs Post Assessment`} changeColor='text-success' tooltip="The average percentage improvement between pre and post-assessment scores." sparklineData={stats.sparklines.improvement} />
+            <KpiCard title="% Improvement" value={`${stats.improvement}%`} icon={<TrendingUp className="text-brand-secondary" />} change={`Pre vs Post Assessment`} changeColor='text-success' tooltip="The average percentage improvement between pre and post-assessment scores." sparklineData={stats.sparklines.improvement} onClick={null}/>
         </div>
     );
 };
@@ -424,15 +512,14 @@ const BranchComparison = ({ data, allData, filters, setFilters }) => {
     const [sortBy, setSortBy] = useState('completionRate');
     const tickColor = theme === 'dark' ? '#A0AEC0' : '#4A5568';
     const gridColor = theme === 'dark' ? '#374151' : '#E5E7EB';
-    // FIX: Added default values for props passed by Recharts to avoid type errors.
     const CustomTooltip = ({ active = false, payload = [], label = '', companyAvgs }) => {
       if (active && payload && payload.length) {
         const data = payload[0].payload;
         return (
           <div className="bg-white dark:bg-gray-800 p-3 border dark:border-gray-600 rounded-lg shadow-xl text-sm transition-all">
             <p className="font-bold text-gray-900 dark:text-gray-100 mb-1">{label}</p><p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{data.recordCount} training records</p>
-            <p className="text-brand-primary font-semibold">{`Completion Rate: ${data.completionRate.toFixed(1)}%`}</p><p className="text-brand-secondary font-semibold">{`Avg. Quiz Score: ${data.quizScore.toFixed(1)}%`}</p>
-            <div className="border-t dark:border-gray-700 mt-2 pt-2 text-xs"><p className="text-gray-600 dark:text-gray-300">Company Avg Completion: {companyAvgs.completion.toFixed(1)}%</p><p className="text-gray-600 dark:text-gray-300">Company Avg Score: {companyAvgs.score.toFixed(1)}%</p></div>
+            <p className="text-brand-primary font-semibold">{`Completion Rate: ${Number(data.completionRate).toFixed(1)}%`}</p><p className="text-brand-secondary font-semibold">{`Avg. Quiz Score: ${Number(data.quizScore).toFixed(1)}%`}</p>
+            <div className="border-t dark:border-gray-700 mt-2 pt-2 text-xs"><p className="text-gray-600 dark:text-gray-300">Company Avg Completion: {Number(companyAvgs.completion).toFixed(1)}%</p><p className="text-gray-600 dark:text-gray-300">Company Avg Score: {Number(companyAvgs.score).toFixed(1)}%</p></div>
           </div>
         );
       } return null;
@@ -529,16 +616,15 @@ const CourseAnalysis = ({ data, filters, setFilters }) => {
     const topCourses = [...courseData].sort((a, b) => b.completion - a.completion).slice(0, 5);
     const lowPerformingCourses = [...courseData].sort((a, b) => a[lowPerfSortBy] - b[lowPerfSortBy]).slice(0, 5);
     const avgScoresPerCourse = [...courseData].sort((a, b) => b.score - a.score);
-    // FIX: Wrapped empty data message in a DashboardCard to maintain layout consistency and fix children prop error.
     if (data.length === 0) return <DashboardCard title="Course Analysis"><div className="flex items-center justify-center h-full min-h-[400px] text-gray-500 dark:text-gray-400">No data available for the selected filters.</div></DashboardCard>;
     const PIE_COLORS = ['#0072BC', '#F58220'];
     const lowPerfSortOptions = [{id: 'completion', label: 'Completion'}, {id: 'score', label: 'Score'}, {id: 'learners', label: 'Learners'}];
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             <DashboardCard title="Course Type Distribution" className="xl:col-span-1"><div style={{ width: '100%', height: 300 }}><ResponsiveContainer><BarChart data={courseTypeData} layout="vertical" margin={{ top: 5, right: 30, left: 80, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" stroke={gridColor}/><XAxis type="number" tick={{ fill: tickColor }}/><YAxis type="category" dataKey="name" tick={{ fill: tickColor }} /><Tooltip formatter={(value) => [value, 'Records']} /><Bar dataKey="Training Records" onClick={handleCourseTypeClick} maxBarSize={40}>{courseTypeData.map((entry, index) => <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} cursor="pointer" opacity={!filters.courseTypeFilter.length || filters.courseTypeFilter.includes(entry.name) ? 1 : 0.4} />)}</Bar></BarChart></ResponsiveContainer></div></DashboardCard>
-            <DashboardCard title="Top 5 Courses by Completion" className="xl:col-span-1"><div style={{ width: '100%', height: 300 }}><ResponsiveContainer><BarChart data={topCourses} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" stroke={gridColor}/><XAxis type="number" domain={[0, 100]} unit="%" tick={{ fill: tickColor }}/><YAxis type="category" dataKey="name" tick={{ fill: tickColor }} /><Tooltip formatter={(value) => `${value.toFixed(1)}%`} /><Bar dataKey="completion" name="Completion Rate" onClick={handleCourseClick} maxBarSize={30}>{topCourses.map((entry, index) => <Cell key={`cell-${index}`} fill={getStatusColor(entry.completion)} cursor="pointer" opacity={!filters.courseFilter.length || filters.courseFilter.includes(entry.name) ? 1 : 0.4} />)}</Bar></BarChart></ResponsiveContainer></div></DashboardCard>
-            <DashboardCard title="Low Performing Courses" className="xl:col-span-1" actions={<div className="flex items-center space-x-2"><span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Sort by:</span>{lowPerfSortOptions.map(opt => <button key={opt.id} onClick={() => setLowPerfSortBy(opt.id)} className={`px-3 py-1 text-xs rounded-md font-medium transition-colors ${lowPerfSortBy === opt.id ? 'bg-brand-primary text-white shadow' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500'}`}>{opt.label}</button>)}</div>}><div style={{ width: '100%', height: 300 }}><ResponsiveContainer><BarChart data={lowPerformingCourses} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" stroke={gridColor} /><XAxis type="number" tick={{ fill: tickColor }} domain={[0, lowPerfSortBy === 'learners' ? 'auto' : 100]}/><YAxis type="category" dataKey="name" tick={{ fill: tickColor }} /><Tooltip formatter={(value, name) => [`${value.toFixed(1)}${name !== 'learners' ? '%' : ''}`, `Avg ${name}`]} /><Bar dataKey={lowPerfSortBy} name={lowPerfSortBy} onClick={handleCourseClick} maxBarSize={30}>{lowPerformingCourses.map((entry, index) => <Cell key={`cell-${index}`} fill={getStatusColor(entry[lowPerfSortBy], lowPerfSortBy === 'learners' ? {low: 10, mid: 20} : {low: 60, mid: 75})} cursor="pointer" opacity={!filters.courseFilter.length || filters.courseFilter.includes(entry.name) ? 1 : 0.4} />)}</Bar></BarChart></ResponsiveContainer></div></DashboardCard>
-            <DashboardCard title="Average Scores per Course" className="lg:col-span-3"><div style={{ width: '100%', height: 400 }}><ResponsiveContainer><BarChart data={avgScoresPerCourse} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" stroke={gridColor}/><XAxis type="number" domain={[0, 100]} tick={{ fill: tickColor }} unit="%"/><YAxis type="category" dataKey="name" tick={{ fill: tickColor }} /><Tooltip formatter={(value) => [`${value.toFixed(1)}%`, 'Avg. Score']} /><Bar dataKey="score" name="Avg. Score" onClick={handleCourseClick} maxBarSize={30}>{avgScoresPerCourse.map((entry, index) => <Cell key={`cell-${index}`} fill={getStatusColor(entry.score, {low: 65, mid: 80})} cursor="pointer" opacity={!filters.courseFilter.length || filters.courseFilter.includes(entry.name) ? 1 : 0.4} />)}</Bar></BarChart></ResponsiveContainer></div></DashboardCard>
+            <DashboardCard title="Top 5 Courses by Completion" className="xl:col-span-1"><div style={{ width: '100%', height: 300 }}><ResponsiveContainer><BarChart data={topCourses} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" stroke={gridColor}/><XAxis type="number" domain={[0, 100]} unit="%" tick={{ fill: tickColor }}/><YAxis type="category" dataKey="name" tick={{ fill: tickColor }} /><Tooltip formatter={(value) => `${Number(value).toFixed(1)}%`} /><Bar dataKey="completion" name="Completion Rate" onClick={handleCourseClick} maxBarSize={30}>{topCourses.map((entry, index) => <Cell key={`cell-${index}`} fill={getStatusColor(entry.completion)} cursor="pointer" opacity={!filters.courseFilter.length || filters.courseFilter.includes(entry.name) ? 1 : 0.4} />)}</Bar></BarChart></ResponsiveContainer></div></DashboardCard>
+            <DashboardCard title="Low Performing Courses" className="xl:col-span-1" actions={<div className="flex items-center space-x-2"><span className="text-sm font-semibold text-gray-700 dark:text-gray-300">Sort by:</span>{lowPerfSortOptions.map(opt => <button key={opt.id} onClick={() => setLowPerfSortBy(opt.id)} className={`px-3 py-1 text-xs rounded-md font-medium transition-colors ${lowPerfSortBy === opt.id ? 'bg-brand-primary text-white shadow' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500'}`}>{opt.label}</button>)}</div>}><div style={{ width: '100%', height: 300 }}><ResponsiveContainer><BarChart data={lowPerformingCourses} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" stroke={gridColor} /><XAxis type="number" tick={{ fill: tickColor }} domain={[0, lowPerfSortBy === 'learners' ? 'auto' : 100]}/><YAxis type="category" dataKey="name" tick={{ fill: tickColor }} /><Tooltip formatter={(value, name) => [`${Number(value).toFixed(1)}${name !== 'learners' ? '%' : ''}`, `Avg ${name}`]} /><Bar dataKey={lowPerfSortBy} name={lowPerfSortBy} onClick={handleCourseClick} maxBarSize={30}>{lowPerformingCourses.map((entry, index) => <Cell key={`cell-${index}`} fill={getStatusColor(entry[lowPerfSortBy], lowPerfSortBy === 'learners' ? {low: 10, mid: 20} : {low: 60, mid: 75})} cursor="pointer" opacity={!filters.courseFilter.length || filters.courseFilter.includes(entry.name) ? 1 : 0.4} />)}</Bar></BarChart></ResponsiveContainer></div></DashboardCard>
+            <DashboardCard title="Average Scores per Course" className="lg:col-span-3"><div style={{ width: '100%', height: 400 }}><ResponsiveContainer><BarChart data={avgScoresPerCourse} layout="vertical" margin={{ top: 5, right: 30, left: 120, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" stroke={gridColor}/><XAxis type="number" domain={[0, 100]} tick={{ fill: tickColor }} unit="%"/><YAxis type="category" dataKey="name" tick={{ fill: tickColor }} /><Tooltip formatter={(value) => [`${Number(value).toFixed(1)}%`, 'Avg. Score']} /><Bar dataKey="score" name="Avg. Score" onClick={handleCourseClick} maxBarSize={30}>{avgScoresPerCourse.map((entry, index) => <Cell key={`cell-${index}`} fill={getStatusColor(entry.score, {low: 65, mid: 80})} cursor="pointer" opacity={!filters.courseFilter.length || filters.courseFilter.includes(entry.name) ? 1 : 0.4} />)}</Bar></BarChart></ResponsiveContainer></div></DashboardCard>
         </div>
     );
 };
@@ -640,7 +726,6 @@ const LearnerPerformance = ({ allData, selectedEmail, onLearnerSelect }) => {
         );
     };
 
-    // FIX: Added default values for props passed by Recharts to avoid type errors.
     const CustomTooltipContent = ({ active = false, payload = [], label = '' }) => {
         if (active && payload && payload.length) {
             return (
@@ -693,7 +778,6 @@ const TrendAnalysis = ({ data }) => {
         });
     };
     const monthlyData = useMemo(() => {
-        // FIX: Explicitly typed the accumulator object to avoid property access errors.
         const trends: {[key: string]: {totalCompletion: number, count: number, totalHours: number}} = {};
         data.forEach(item => {
             const month = item.completionDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short' });
@@ -705,7 +789,6 @@ const TrendAnalysis = ({ data }) => {
         const sortedTrends = Object.entries(trends).map(([month, values]) => ({ month, avgCompletion: values.totalCompletion / values.count, trainingHours: values.totalHours })).sort((a, b) => new Date(a.month).getTime() - new Date(b.month).getTime());
         return calculateMovingAverage(sortedTrends, 3);
     }, [data]);
-    // FIX: Wrapped empty data message in a DashboardCard to maintain layout consistency and fix children prop error.
     if (data.length === 0) return <DashboardCard title="Trend Analysis"><div className="flex items-center justify-center h-full min-h-[400px] text-gray-500 dark:text-gray-400">No data available for the selected filters.</div></DashboardCard>;
     const completionActions = <label className="flex items-center space-x-2 cursor-pointer text-sm"><input type="checkbox" checked={showMA} onChange={() => setShowMA(!showMA)} className="rounded text-brand-primary focus:ring-brand-primary" /><span className="text-gray-600 dark:text-gray-300">Show 3-Month MA</span></label>;
     const renderChartOrMessage = (chart) => {
@@ -714,7 +797,7 @@ const TrendAnalysis = ({ data }) => {
     };
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <DashboardCard title="Completion Rate Over Time" actions={completionActions}>{renderChartOrMessage(<ResponsiveContainer><LineChart data={monthlyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" stroke={gridColor} /><XAxis dataKey="month" tick={{ fill: tickColor }} /><YAxis domain={[0, 100]} unit="%" tick={{ fill: tickColor }} /><Tooltip formatter={(value, name) => [`${value.toFixed(1)}%`, name]} /><Legend wrapperStyle={{ color: tickColor, paddingTop: '10px' }} /><Line type="monotone" dataKey="avgCompletion" name="Avg Completion Rate" stroke="#0072BC" strokeWidth={2} dot={monthlyData.length < 2}/><Brush dataKey="month" height={30} stroke="#8884d8" y={320} travellerWidth={20} />{showMA && <Line type="monotone" dataKey="movingAverage" name="3-Month Moving Avg" stroke="#00A99D" strokeWidth={2} strokeDasharray="5 5" dot={false}/>}</LineChart></ResponsiveContainer>)}</DashboardCard>
+            <DashboardCard title="Completion Rate Over Time" actions={completionActions}>{renderChartOrMessage(<ResponsiveContainer><LineChart data={monthlyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" stroke={gridColor} /><XAxis dataKey="month" tick={{ fill: tickColor }} /><YAxis domain={[0, 100]} unit="%" tick={{ fill: tickColor }} /><Tooltip formatter={(value, name) => [`${Number(value).toFixed(1)}%`, name]} /><Legend wrapperStyle={{ color: tickColor, paddingTop: '10px' }} /><Line type="monotone" dataKey="avgCompletion" name="Avg Completion Rate" stroke="#0072BC" strokeWidth={2} dot={monthlyData.length < 2}/><Brush dataKey="month" height={30} stroke="#8884d8" y={320} travellerWidth={20} />{showMA && <Line type="monotone" dataKey="movingAverage" name="3-Month Moving Avg" stroke="#00A99D" strokeWidth={2} strokeDasharray="5 5" dot={false}/>}</LineChart></ResponsiveContainer>)}</DashboardCard>
             <DashboardCard title="Total Training Hours Over Time">{renderChartOrMessage(<ResponsiveContainer><LineChart data={monthlyData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}><CartesianGrid strokeDasharray="3 3" stroke={gridColor}/><XAxis dataKey="month" tick={{ fill: tickColor }} /><YAxis tick={{ fill: tickColor }} /><Tooltip /><Legend wrapperStyle={{ color: tickColor, paddingTop: '10px' }} /><Line type="monotone" dataKey="trainingHours" name="Total Training Hours" stroke="#F58220" strokeWidth={2} dot={monthlyData.length < 2}/><Brush dataKey="month" height={30} stroke="#8884d8" y={320} travellerWidth={20} /></LineChart></ResponsiveContainer>)}</DashboardCard>
         </div>
     );
@@ -724,11 +807,10 @@ const EngagementPerformance = ({ data }) => {
     const { theme } = useTheme();
     const tickColor = theme === 'dark' ? '#A0AEC0' : '#4A5568';
     const gridColor = theme === 'dark' ? '#4A5568' : '#ccc';
-    // FIX: Added default values for props passed by Recharts to avoid type errors.
     const CustomTooltip = ({ active = false, payload = [] }) => {
       if (active && payload && payload.length) {
         const data = payload[0].payload;
-        return <div className="bg-white dark:bg-gray-800 p-2 border dark:border-gray-600 rounded shadow-lg text-sm"><p className="font-bold text-gray-800 dark:text-gray-100">{data.name}</p><p className="text-gray-700 dark:text-gray-300">{`Engagement (Hours): ${data.x.toFixed(1)}`}</p><p className="text-gray-700 dark:text-gray-300">{`Performance (Score): ${data.y.toFixed(1)}%`}</p></div>;
+        return <div className="bg-white dark:bg-gray-800 p-2 border dark:border-gray-600 rounded shadow-lg text-sm"><p className="font-bold text-gray-800 dark:text-gray-100">{data.name}</p><p className="text-gray-700 dark:text-gray-300">{`Engagement (Hours): ${Number(data.x).toFixed(1)}`}</p><p className="text-gray-700 dark:text-gray-300">{`Performance (Score): ${Number(data.y).toFixed(1)}%`}</p></div>;
       } return null;
     };
     const { scatterData, avgEngagement, avgPerformance } = useMemo(() => {
@@ -744,7 +826,6 @@ const EngagementPerformance = ({ data }) => {
         const avgY = processedData.reduce((acc, curr) => acc + curr.y, 0) / processedData.length;
         return { scatterData: processedData, avgEngagement: avgX, avgPerformance: avgY };
     }, [data]);
-    // FIX: Wrapped empty data message in a DashboardCard to maintain layout consistency and fix children prop error.
     if (data.length === 0) return <DashboardCard title="Engagement vs. Performance Correlation"><div className="flex items-center justify-center h-full min-h-[400px] text-gray-500 dark:text-gray-400">No data available for the selected filters.</div></DashboardCard>;
     return (
         <DashboardCard title="Engagement vs. Performance Correlation">
@@ -774,23 +855,20 @@ const Leaderboard = ({ data, onTraineeSelect }) => {
             if (val >= 90) return 'bg-success'; if (val >= 75) return 'bg-brand-primary'; if (val >= 50) return 'bg-warning'; return 'bg-danger';
         };
         return (
-            <div className="flex items-center gap-x-3"><span className="font-semibold text-gray-800 dark:text-gray-100 w-16 text-right">{value.toFixed(1)}%</span><div className="w-full bg-gray-200 rounded-full h-3.5 dark:bg-gray-600"><div className={`${getBarColor(value)} h-3.5 rounded-full`} style={{ width: `${value}%` }} role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}></div></div></div>
+            <div className="flex items-center gap-x-3"><span className="font-semibold text-gray-800 dark:text-gray-100 w-16 text-right">{Number(value).toFixed(1)}%</span><div className="w-full bg-gray-200 rounded-full h-3.5 dark:bg-gray-600"><div className={`${getBarColor(value)} h-3.5 rounded-full`} style={{ width: `${value}%` }} role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}></div></div></div>
         );
     };
     const topTrainees = useMemo(() => {
-        // FIX: Explicitly typed the accumulator object to avoid property access errors.
         const traineeScores: {[key: string]: { name: string, totalScore: number, count: number }} = {};
         data.forEach(d => { if (d.postAssessmentScore > 0 && d.email) { if (!traineeScores[d.email]) traineeScores[d.email] = { name: d.traineeName, totalScore: 0, count: 0 }; traineeScores[d.email].totalScore += d.postAssessmentScore; traineeScores[d.email].count++; } });
         return Object.entries(traineeScores).map(([email, { name, totalScore, count }]) => ({ email, name, avgScore: parseFloat((totalScore / count).toFixed(1)), courseInfo: `(${count} courses)`, courseCount: count })).sort((a, b) => b.avgScore - a.avgScore).map((trainee, index) => ({ ...trainee, rank: index + 1 }));
     }, [data]);
     const topBranches = useMemo(() => {
-        // FIX: Explicitly typed the accumulator object to avoid property access errors.
         const branchRates: {[key: string]: { totalRate: number, count: number, trainees: Set<string> }} = {};
         data.forEach(d => { if (!branchRates[d.branch]) branchRates[d.branch] = { totalRate: 0, count: 0, trainees: new Set() }; branchRates[d.branch].totalRate += d.completionRate; branchRates[d.branch].count++; branchRates[d.branch].trainees.add(d.traineeName); });
         return Object.entries(branchRates).map(([name, { totalRate, count, trainees }]) => ({ name, avgRate: parseFloat((totalRate / count).toFixed(1)), traineeInfo: `(${trainees.size} trainees)`, traineeCount: trainees.size })).sort((a,b) => b.avgRate - a.avgRate).map((branch, index) => ({ ...branch, rank: index + 1}));
     }, [data]);
     const topSupervisors = useMemo(() => {
-        // FIX: Explicitly typed the accumulator object to avoid property access errors.
         const supervisorRates: {[key: string]: { totalRate: number, count: number, trainees: Set<string> }} = {};
         data.forEach(d => { if (d.supervisor) { if (!supervisorRates[d.supervisor]) supervisorRates[d.supervisor] = { totalRate: 0, count: 0, trainees: new Set() }; supervisorRates[d.supervisor].totalRate += d.completionRate; supervisorRates[d.supervisor].count++; supervisorRates[d.supervisor].trainees.add(d.traineeName); } });
         return Object.entries(supervisorRates).map(([name, { totalRate, count, trainees }]) => ({ name, avgRate: parseFloat((totalRate / count).toFixed(1)), traineeInfo: `(${trainees.size} trainees)`, traineeCount: trainees.size })).sort((a, b) => b.avgRate - a.avgRate).map((supervisor, index) => ({ ...supervisor, rank: index + 1}));
@@ -801,7 +879,6 @@ const Leaderboard = ({ data, onTraineeSelect }) => {
     const traineeColumns = [ { key: 'rank', label: 'Rank', render: item => <RankCell rank={item.rank} /> }, { key: 'name', label: 'Trainee', render: item => <button onClick={() => onTraineeSelect(item.email)} className="text-left hover:underline text-brand-primary font-semibold">{item.name}<span className="text-xs text-gray-500 dark:text-gray-400 font-normal ml-2">{item.courseInfo}</span></button> }, { key: 'avgScore', label: 'Average Score', render: item => <ProgressBarCell value={item.avgScore} /> } ];
     const branchColumns = [ { key: 'rank', label: 'Rank', render: item => <RankCell rank={item.rank} /> }, { key: 'name', label: 'Branch', render: item => <span>{item.name}<span className="text-xs text-gray-500 dark:text-gray-400 ml-2">{item.traineeInfo}</span></span> }, { key: 'avgRate', label: 'Average Completion', render: item => <ProgressBarCell value={item.avgRate} /> } ];
     const supervisorColumns = [ { key: 'rank', label: 'Rank', render: item => <RankCell rank={item.rank} /> }, { key: 'name', label: 'Supervisor', render: item => <span>{item.name}<span className="text-xs text-gray-500 dark:text-gray-400 ml-2">{item.traineeInfo}</span></span> }, { key: 'avgRate', label: 'Team Average Completion', render: item => <ProgressBarCell value={item.avgRate} /> } ];
-    // FIX: Wrapped empty data message in a DashboardCard to maintain layout consistency and fix children prop error.
     if (data.length === 0) return <DashboardCard title="Leaderboards"><div className="flex items-center justify-center h-full min-h-[400px] text-gray-500 dark:text-gray-400">No data available for the selected filters.</div></DashboardCard>;
     return (
         <div className="grid grid-cols-1 gap-8">
@@ -832,19 +909,16 @@ const ActionableInsights = ({ data, allData, onTraineeSelect }) => {
         return Array.from(riskMap.values());
     }, [data, thresholds]);
     const coursesNeedingAttention = useMemo(() => {
-        // FIX: Explicitly typed the accumulator object to avoid property access errors.
         const courseStats: {[key: string]: { totalCompletion: number, totalScore: number, scoreCount: number, recordCount: number, learners: Set<string> }} = {};
         data.forEach(record => { if (!courseStats[record.courseTitle]) courseStats[record.courseTitle] = { totalCompletion: 0, totalScore: 0, scoreCount: 0, recordCount: 0, learners: new Set() }; const stats = courseStats[record.courseTitle]; stats.totalCompletion += record.completionRate; stats.recordCount++; stats.learners.add(record.traineeName); if (record.postAssessmentScore > 0) { stats.totalScore += record.postAssessmentScore; stats.scoreCount++; } });
         return Object.entries(courseStats).map(([title, stats]) => ({ title, avgCompletion: parseFloat((stats.totalCompletion / stats.recordCount).toFixed(1)), avgScore: stats.scoreCount > 0 ? parseFloat((stats.totalScore / stats.scoreCount).toFixed(1)) : 0, learnerCount: stats.learners.size })).filter(course => course.avgCompletion < thresholds.COURSE_ATTENTION_COMPLETION || (course.avgScore > 0 && course.avgScore < thresholds.COURSE_ATTENTION_SCORE));
     }, [data, thresholds]);
     const topImprovers = useMemo(() => {
-        // FIX: Explicitly typed the accumulator object to avoid property access errors.
         const improverStats: {[key: string]: { name: string, totalImprovement: number, courseCount: number }} = {};
         data.forEach(record => { if (record.preAssessmentScore > 0 && record.postAssessmentScore > 0 && record.email) { if (!improverStats[record.email]) improverStats[record.email] = { name: record.traineeName, totalImprovement: 0, courseCount: 0 }; const improvement = ((record.postAssessmentScore - record.preAssessmentScore) / record.preAssessmentScore) * 100; if (improvement > 0) { improverStats[record.email].totalImprovement += improvement; improverStats[record.email].courseCount++; } } });
         return Object.entries(improverStats).filter(([, stats]) => stats.courseCount > 0).map(([email, stats]) => ({ email, name: stats.name, avgImprovement: parseFloat((stats.totalImprovement / stats.courseCount).toFixed(1)), })).sort((a, b) => b.avgImprovement - a.avgImprovement).map((trainee, index) => ({ ...trainee, rank: index + 1 }));
     }, [data]);
     const topPerformingCourses = useMemo(() => {
-        // FIX: Explicitly typed the accumulator object to avoid property access errors.
         const courseStats: {[key:string]: { totalCompletion: number, totalScore: number, scoreCount: number, recordCount: number }} = {};
         data.forEach(record => { if (!courseStats[record.courseTitle]) courseStats[record.courseTitle] = { totalCompletion: 0, totalScore: 0, scoreCount: 0, recordCount: 0 }; const stats = courseStats[record.courseTitle]; stats.totalCompletion += record.completionRate; stats.recordCount++; if (record.postAssessmentScore > 0) { stats.totalScore += record.postAssessmentScore; stats.scoreCount++; } });
         return Object.entries(courseStats).map(([title, stats]) => { const avgCompletion = stats.recordCount > 0 ? (stats.totalCompletion / stats.recordCount) : 0; const avgScore = stats.scoreCount > 0 ? (stats.totalScore / stats.scoreCount) : 0; const performanceScore = (avgCompletion * 0.6) + (avgScore * 0.4); return { title, avgCompletion, avgScore, performanceScore, recordCount: stats.recordCount }; }).sort((a, b) => b.performanceScore - a.performanceScore).slice(0, 5).map((course, index) => ({ ...course, rank: index + 1}));
@@ -858,7 +932,6 @@ const ActionableInsights = ({ data, allData, onTraineeSelect }) => {
     const coursesColumns = [ { key: 'title', label: 'Course Title' }, { key: 'avgCompletion', label: 'Avg Completion', render: item => <span className={item.avgCompletion < thresholds.COURSE_ATTENTION_COMPLETION ? 'text-danger font-semibold' : ''}>{item.avgCompletion.toFixed(1)}%</span> }, { key: 'avgScore', label: 'Avg Score', render: item => <span className={item.avgScore > 0 && item.avgScore < thresholds.COURSE_ATTENTION_SCORE ? 'text-danger font-semibold' : ''}>{item.avgScore.toFixed(1)}%</span> }, { key: 'learnerCount', label: 'Learners' } ];
     const topImproversColumns = [ { key: 'rank', label: 'Rank', render: item => <RankCell rank={item.rank} /> }, { key: 'name', label: 'Trainee' }, { key: 'avgImprovement', label: 'Avg. Improvement', render: item => <span className="font-semibold text-success">+{item.avgImprovement.toFixed(1)}%</span> } ];
     const topCoursesColumns = [ { key: 'rank', label: 'Rank', render: item => <RankCell rank={item.rank} /> }, { key: 'title', label: 'Course Title' }, { key: 'avgCompletion', label: 'Avg Completion', render: item => <span className="font-semibold text-green-600 dark:text-green-400">{item.avgCompletion.toFixed(1)}%</span> }, { key: 'avgScore', label: 'Avg Score', render: item => <span className="font-semibold text-green-600 dark:text-green-400">{item.avgScore.toFixed(1)}%</span> } ];
-    // FIX: Wrapped empty data message in a DashboardCard to maintain layout consistency and fix children prop error.
     if (data.length === 0) return <DashboardCard title="Actionable Insights"><div className="flex items-center justify-center h-full min-h-[400px] text-gray-500 dark:text-gray-400">No data available for the selected filters.</div></DashboardCard>;
     const ThresholdInput = ({ label, name, value, unit = "%" }) => <div><label htmlFor={name} className="block text-xs font-medium text-gray-500 dark:text-gray-400">{label}</label><div className="relative mt-1"><input type="number" id={name} name={name} value={value} onChange={handleThresholdChange} className="w-24 p-1.5 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-brand-primary focus:border-brand-primary text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200" /><div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none"><span className="text-gray-500 sm:text-sm">{unit}</span></div></div></div>;
     return (
@@ -932,8 +1005,25 @@ const FilterPanel = ({ filters, setFilters, options }) => {
     };
     const handleMultiSelectChange = (filterName, selected) => setLocalFilters(prev => ({ ...prev, [filterName]: selected }));
     const handleDateChange = (type, e) => {
-        const newDate = e.target.value ? new Date(e.target.value) : null;
-        setLocalFilters(prev => ({ ...prev, timePeriodFilter: { ...prev.timePeriodFilter, [type]: newDate } }));
+        const dateValue = e.target.value;
+        if (!dateValue) {
+            setLocalFilters(prev => ({ ...prev, timePeriodFilter: { ...prev.timePeriodFilter, [type]: null } }));
+            setActiveQuickSelect(null);
+            return;
+        }
+
+        const newDate = new Date(dateValue);
+        // Adjust for timezone offset
+        const timezoneOffset = newDate.getTimezoneOffset() * 60000;
+        let adjustedDate = new Date(newDate.getTime() + timezoneOffset);
+
+        if (type === 'start') {
+            adjustedDate.setHours(0, 0, 0, 0);
+        } else { // 'end'
+            adjustedDate = new Date(adjustedDate.getTime() + (24 * 60 * 60 * 1000 - 1));
+        }
+        
+        setLocalFilters(prev => ({ ...prev, timePeriodFilter: { ...prev.timePeriodFilter, [type]: adjustedDate } }));
         setActiveQuickSelect(null);
     };
     const handleQuickSelect = (period) => {
@@ -981,7 +1071,13 @@ const FilterPanel = ({ filters, setFilters, options }) => {
 const Sidebar = ({ activeSection, setActiveSection, sections }) => {
     return (
         <aside className="w-64 bg-brand-dark text-white flex-col hidden sm:flex">
-            <div className="p-4 border-b border-gray-700"><img src="/logo.jpeg" alt="United Pharmacy Logo" className="w-full h-auto" /></div>
+            <div className="sidebar-logo p-4 border-b border-gray-700">
+              <img 
+                src="https://raw.githubusercontent.com/mohamedomar00700-sudo/United-Pharmacy-LMS-Dashboard/main/public/logo.jpeg" 
+                alt="United Pharmacy Logo" 
+                style={{width: '140px', height: 'auto', display: 'block', margin: '10px auto'}} 
+              />
+            </div>
             <nav className="flex-1 p-4">
                 <ul>{sections.map(section => <li key={section.id}><button onClick={() => setActiveSection(section.id)} className={`w-full text-left flex items-center space-x-3 p-3 my-1 rounded-md transition-all duration-200 ${activeSection === section.id ? 'bg-brand-primary text-white shadow-md' : 'hover:bg-blue-900/50'}`}><section.icon className="h-5 w-5" /><span>{section.name}</span></button></li>)}</ul>
             </nav>
@@ -992,7 +1088,7 @@ const Sidebar = ({ activeSection, setActiveSection, sections }) => {
 
 const Dashboard = () => {
     const [activeSection, setActiveSection] = useState('overview');
-    const [allData, setAllData] = useState([]);
+    const [allData, setAllData] = useState<TrainingRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const exportRef = useRef(null);
@@ -1004,7 +1100,6 @@ const Dashboard = () => {
     const sections = [ { id: 'overview', name: 'Overview', icon: BarChart2 }, { id: 'leaderboard', name: 'Leaderboards', icon: Trophy }, { id: 'actionable-insights', name: 'Actionable Insights', icon: ShieldAlert }, { id: 'branch-comparison', name: 'Branch Comparison', icon: GitCompareArrows }, { id: 'comparison-tool', name: 'Comparison Tool', icon: Users }, { id: 'course-analysis', name: 'Course Analysis', icon: BookOpen }, { id: 'learner-performance', name: 'Learner Performance', icon: Target }, { id: 'trend-analysis', name: 'Trend Analysis', icon: TrendingUp }, { id: 'engagement-performance', name: 'Engagement vs Performance', icon: Users } ];
 
     useEffect(() => {
-        // FIX: Removed impossible comparison that caused a TypeScript error.
         if (!GOOGLE_SHEET_CSV_URL) {
             setError("Google Sheet URL is not configured. Please see the instructions in the code comments to set it up.");
             setLoading(false); return;
@@ -1060,7 +1155,7 @@ const Dashboard = () => {
                 </header>
                 { !error && allData.length > 0 && activeSection !== 'comparison-tool' && <FilterPanel filters={filters} setFilters={setFilters} options={filterOptions} /> }
                 <div ref={exportRef} className="p-4 md:p-6 lg:p-8 flex-1 bg-gray-100 dark:bg-gray-900">
-                     {error ? <div className="text-center p-8 bg-red-50 dark:bg-red-900/20 border border-danger rounded-lg"><h2 className="text-xl font-bold text-danger mb-2">Data Loading Error</h2><p className="text-gray-700 dark:text-gray-300">{error}</p><p className="mt-2 text-sm">Please refer to the setup instructions in <code className="bg-gray-200 dark:bg-gray-700 p-1 rounded">components/Dashboard.tsx</code> to configure the Google Sheet URL.</p></div> : renderSection()}
+                     {error ? <div className="text-center p-8 bg-red-50 dark:bg-red-900/20 border border-danger rounded-lg"><h2 className="text-xl font-bold text-danger mb-2">Data Loading Error</h2><p className="text-gray-700 dark:text-gray-300">{error}</p><p className="mt-2 text-sm">Please refer to the setup instructions in <code className="bg-gray-200 dark:bg-gray-700 p-1 rounded">index.tsx</code> to configure the Google Sheet URL.</p></div> : renderSection()}
                 </div>
             </main>
         </div>
