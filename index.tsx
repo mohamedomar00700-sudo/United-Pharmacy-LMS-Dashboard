@@ -104,14 +104,30 @@ const mapRowToTrainingRecord = (row, index) => {
 };
 
 const fetchTrainingData = async (sheetUrl) => {
-    const response = await fetch(sheetUrl);
-    if (!response.ok) {
-        throw new Error(`Network response was not ok. Status: ${response.status}`);
+    try {
+        const response = await fetch(sheetUrl);
+        if (!response.ok) {
+            console.error(`Network response was not ok. Status: ${response.status}`);
+            return null;
+        }
+        const csvText = await response.text();
+        const parsedData = parseCSV(csvText);
+        return parsedData.map(mapRowToTrainingRecord);
+    } catch (error) {
+        console.error("Failed to fetch training data:", error);
+        return null;
     }
-    const csvText = await response.text();
-    const parsedData = parseCSV(csvText);
-    return parsedData.map(mapRowToTrainingRecord);
 };
+
+const getSampleData = (): TrainingRecord[] => [
+    // Sample Data as a fallback
+    { id: 1, traineeName: "Ali Ahmed", email: "ali.ahmed@example.com", branch: "Riyadh Central Pharmacy", districtHead: "Fahd Al-Mutairi", supervisor: "Noura Khalid", courseTitle: "Advanced Pharmacology", completionRate: 95, preAssessmentScore: 70, postAssessmentScore: 92, averageQuizScore: 88, courseType: CourseType.Mandatory, completionDate: new Date("2023-10-15"), trainingHours: 8 },
+    { id: 2, traineeName: "Fatima Zahra", email: "fatima.zahra@example.com", branch: "Jeddah Corniche Meds", districtHead: "Sultan Al-Ghamdi", supervisor: "Omar Sharif", courseTitle: "Patient Communication", completionRate: 100, preAssessmentScore: 80, postAssessmentScore: 98, averageQuizScore: 95, courseType: CourseType.Optional, completionDate: new Date("2023-11-01"), trainingHours: 4 },
+    { id: 3, traineeName: "Khalid Abdullah", email: "khalid.a@example.com", branch: "Dammam Health Hub", districtHead: "Fahd Al-Mutairi", supervisor: "Layla Hassan", courseTitle: "Pharmacy Management", completionRate: 80, preAssessmentScore: 65, postAssessmentScore: 75, averageQuizScore: 78, courseType: CourseType.Mandatory, completionDate: new Date("2023-10-20"), trainingHours: 12 },
+    { id: 4, traineeName: "Aisha Mohammed", email: "aisha.m@example.com", branch: "Riyadh Central Pharmacy", districtHead: "Fahd Al-Mutairi", supervisor: "Noura Khalid", courseTitle: "Patient Communication", completionRate: 88, preAssessmentScore: 75, postAssessmentScore: 85, averageQuizScore: 90, courseType: CourseType.Optional, completionDate: new Date("2023-11-05"), trainingHours: 4 },
+    { id: 5, traineeName: "Youssef Ibrahim", email: "youssef.i@example.com", branch: "Jeddah Corniche Meds", districtHead: "Sultan Al-Ghamdi", supervisor: "Omar Sharif", courseTitle: "Advanced Pharmacology", completionRate: 75, preAssessmentScore: 50, postAssessmentScore: 68, averageQuizScore: 72, courseType: CourseType.Mandatory, completionDate: new Date("2023-10-25"), trainingHours: 8 },
+    { id: 6, traineeName: "Sara Abdulaziz", email: "sara.a@example.com", branch: "Dammam Health Hub", districtHead: "Fahd Al-Mutairi", supervisor: "Layla Hassan", courseTitle: "Inventory Control", completionRate: 92, preAssessmentScore: 85, postAssessmentScore: 95, averageQuizScore: 91, courseType: CourseType.Mandatory, completionDate: new Date("2023-11-10"), trainingHours: 6 },
+];
 
 // ========= FROM services/exportService.ts =========
 const exportToCsv = (filename, rows) => {
@@ -343,7 +359,7 @@ const ExportCsvButton = ({ data, fileName }) => {
   return <button onClick={handleExport} className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary dark:focus:ring-offset-gray-800" aria-label="Export data to CSV" title="Export data to CSV"><FileSpreadsheet className="h-5 w-5" /></button>;
 };
 
-const MultiSelectFilter = ({ label, options, selected, onChange }) => {
+const MultiSelectFilter = ({ label, options, selected, onChange, disabled = false }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const wrapperRef = useRef(null);
@@ -368,7 +384,7 @@ const MultiSelectFilter = ({ label, options, selected, onChange }) => {
     return (
         <div className="flex flex-col relative" ref={wrapperRef}>
             <label className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1">{label}</label>
-            <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-brand-primary focus:border-brand-primary text-sm bg-white dark:bg-gray-700 text-left flex justify-between items-center text-gray-800 dark:text-gray-200">
+            <button type="button" onClick={() => setIsOpen(!isOpen)} disabled={disabled} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-brand-primary focus:border-brand-primary text-sm bg-white dark:bg-gray-700 text-left flex justify-between items-center text-gray-800 dark:text-gray-200 disabled:bg-gray-100 dark:disabled:bg-gray-700/50 disabled:cursor-not-allowed">
                 <span className="truncate">{getButtonLabel()}</span>
                 <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -381,7 +397,7 @@ const MultiSelectFilter = ({ label, options, selected, onChange }) => {
                         </div>
                     </div>
                     <ul className="text-gray-800 dark:text-gray-200 overflow-y-auto max-h-52">
-                        <li className="p-2 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"><label className="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked={selected.length === options.length} onChange={handleSelectAll} className="rounded text-brand-primary focus:ring-brand-primary" /><span className="font-semibold">Select All</span></label></li>
+                        <li className="p-2 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"><label className="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked={selected.length === options.length && options.length > 0} onChange={handleSelectAll} className="rounded text-brand-primary focus:ring-brand-primary" /><span className="font-semibold">Select All</span></label></li>
                         {filteredOptions.length > 0 ? filteredOptions.map(option => (
                             <li key={option} className="p-2 hover:bg-gray-50 dark:hover:bg-gray-700"><label className="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked={selected.includes(option)} onChange={() => handleSelect(option)} className="rounded text-brand-primary focus:ring-brand-primary" /><span>{option}</span></label></li>
                         )) : <li className="p-2 text-center text-sm text-gray-500">No options found.</li>}
@@ -1056,11 +1072,11 @@ const FilterPanel = ({ filters, setFilters, options }) => {
             </div>
             <div className={`transition-[max-height] duration-300 ease-in-out ${isCollapsed ? 'max-h-0 overflow-hidden' : 'max-h-[500px] overflow-visible'}`}>
                 <div className="p-3 border-t border-gray-200 dark:border-gray-700"><div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-8 gap-3 items-end">
-                    <MultiSelectFilter label="Branch" options={options.branches} selected={localFilters.branchFilter} onChange={(selected) => handleMultiSelectChange('branchFilter', selected)} />
                     <MultiSelectFilter label="District Head" options={options.districtHeads} selected={localFilters.districtHeadFilter} onChange={(selected) => handleMultiSelectChange('districtHeadFilter', selected)} />
-                    <MultiSelectFilter label="Supervisor" options={options.supervisors} selected={localFilters.supervisorFilter} onChange={(selected) => handleMultiSelectChange('supervisorFilter', selected)} />
-                    <MultiSelectFilter label="Course" options={options.courses} selected={localFilters.courseFilter} onChange={(selected) => handleMultiSelectChange('courseFilter', selected)} />
-                    <MultiSelectFilter label="Course Type" options={options.courseTypes} selected={localFilters.courseTypeFilter} onChange={(selected) => handleMultiSelectChange('courseTypeFilter', selected)} />
+                    <MultiSelectFilter label="Branch" options={options.branches} selected={localFilters.branchFilter} onChange={(selected) => handleMultiSelectChange('branchFilter', selected)} disabled={options.branches.length === 0} />
+                    <MultiSelectFilter label="Supervisor" options={options.supervisors} selected={localFilters.supervisorFilter} onChange={(selected) => handleMultiSelectChange('supervisorFilter', selected)} disabled={options.supervisors.length === 0} />
+                    <MultiSelectFilter label="Course" options={options.courses} selected={localFilters.courseFilter} onChange={(selected) => handleMultiSelectChange('courseFilter', selected)} disabled={options.courses.length === 0} />
+                    <MultiSelectFilter label="Course Type" options={options.courseTypes} selected={localFilters.courseTypeFilter} onChange={(selected) => handleMultiSelectChange('courseTypeFilter', selected)} disabled={options.courseTypes.length === 0} />
                     <div className="lg:col-span-2"><label className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1 block">Time Period</label><div className="grid grid-cols-2 gap-2"><input type="date" aria-label="Start Date" value={formatDateForInput(localFilters.timePeriodFilter.start)} onChange={(e) => handleDateChange('start', e)} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-brand-primary focus:border-brand-primary text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200" /><input type="date" aria-label="End Date" value={formatDateForInput(localFilters.timePeriodFilter.end)} onChange={(e) => handleDateChange('end', e)} className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-brand-primary focus:border-brand-primary text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200" /></div><div className="flex items-center space-x-2 mt-2 flex-wrap"><button onClick={() => handleQuickSelect('last7')} className={`px-2 py-1 text-xs rounded transition-colors ${activeQuickSelect === 'last7' ? 'bg-brand-primary text-white' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500'}`}>Last 7 Days</button><button onClick={() => handleQuickSelect('last30')} className={`px-2 py-1 text-xs rounded transition-colors ${activeQuickSelect === 'last30' ? 'bg-brand-primary text-white' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500'}`}>Last 30 Days</button><button onClick={() => handleQuickSelect('thisMonth')} className={`px-2 py-1 text-xs rounded transition-colors ${activeQuickSelect === 'thisMonth' ? 'bg-brand-primary text-white' : 'bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500'}`}>This Month</button><button onClick={handleClearDates} aria-label="Clear dates" className="text-gray-500 dark:text-gray-400 hover:text-danger p-1"><X className="h-4 w-4" /></button></div></div>
                     <div className="lg:col-span-1"><button onClick={handleResetFilters} disabled={!areFiltersActive()} className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-primary disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Reset all filters"><RotateCcw className="h-4 w-4 mr-2" />Reset</button></div>
                 </div></div>
@@ -1072,15 +1088,14 @@ const FilterPanel = ({ filters, setFilters, options }) => {
 const Sidebar = ({ activeSection, setActiveSection, sections }) => {
     return (
         <aside className="w-64 bg-brand-dark text-white flex-col hidden sm:flex">
-            <div className="sidebar-logo p-4 border-b border-gray-700">
+            <div className="sidebar-logo border-b border-gray-700">
               <img 
                 src="https://cdn.jsdelivr.net/gh/mohamedomar00700-sudo/United-Pharmacy-LMS-Dashboard@main/public/logo.jpeg" 
                 alt="United Pharmacy Logo" 
-                width="120" 
-                style={{display:'block', margin:'10px auto'}}
+                className="w-full h-auto object-cover"
                 onError={(e) => {
                     const fallbackSrc = 'https://raw.githubusercontent.com/mohamedomar00700-sudo/United-Pharmacy-LMS-Dashboard/main/public/logo.jpeg';
-                    const target = e.currentTarget;
+                    const target = e.currentTarget as HTMLImageElement;
                     if (target.src !== fallbackSrc) {
                         target.src = fallbackSrc;
                     }
@@ -1101,6 +1116,7 @@ const Dashboard = () => {
     const [allData, setAllData] = useState<TrainingRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [usingSampleData, setUsingSampleData] = useState(false);
     const exportRef = useRef(null);
     const [selectedLearnerEmail, setSelectedLearnerEmail] = useState('');
     const [filters, setFilters] = useState({ branchFilter: [], districtHeadFilter: [], supervisorFilter: [], courseFilter: [], courseTypeFilter: [], timePeriodFilter: { start: null, end: null } });
@@ -1110,23 +1126,76 @@ const Dashboard = () => {
     const sections = [ { id: 'overview', name: 'Overview', icon: BarChart2 }, { id: 'leaderboard', name: 'Leaderboards', icon: Trophy }, { id: 'actionable-insights', name: 'Actionable Insights', icon: ShieldAlert }, { id: 'branch-comparison', name: 'Branch Comparison', icon: GitCompareArrows }, { id: 'comparison-tool', name: 'Comparison Tool', icon: Users }, { id: 'course-analysis', name: 'Course Analysis', icon: BookOpen }, { id: 'learner-performance', name: 'Learner Performance', icon: Target }, { id: 'trend-analysis', name: 'Trend Analysis', icon: TrendingUp }, { id: 'engagement-performance', name: 'Engagement vs Performance', icon: Users } ];
 
     useEffect(() => {
-        if (!GOOGLE_SHEET_CSV_URL) {
-            setError("Google Sheet URL is not configured. Please see the instructions in the code comments to set it up.");
-            setLoading(false); return;
-        }
-        fetchTrainingData(GOOGLE_SHEET_CSV_URL).then(data => setAllData(data))
-            .catch(err => { console.error("Failed to fetch or parse data:", err); setError("Failed to load data. Please check the Google Sheet URL and ensure it's a valid, publicly accessible CSV."); })
-            .finally(() => setLoading(false));
+        const loadData = async () => {
+            let data = await fetchTrainingData(GOOGLE_SHEET_CSV_URL);
+            if (data) {
+                setAllData(data);
+            } else {
+                console.warn("Failed to load live data, falling back to sample data.");
+                setAllData(getSampleData());
+                setError("Failed to load live data from the Google Sheet.");
+                setUsingSampleData(true);
+            }
+            setLoading(false);
+        };
+        loadData();
     }, []);
 
-    const filterOptions = useMemo(() => {
-        const branches = [...new Set(allData.map(d => d.branch))];
-        const districtHeads = [...new Set(allData.map(d => d.districtHead))];
-        const supervisors = [...new Set(allData.map(d => d.supervisor))];
-        const courses = [...new Set(allData.map(d => d.courseTitle))];
-        const courseTypes = Object.values(CourseType);
-        return { branches, districtHeads, supervisors, courses, courseTypes };
-    }, [allData]);
+    const cascadingOptions = useMemo(() => {
+        // Start with all possible options
+        const allDistrictHeads = [...new Set(allData.map(d => d.districtHead).filter(Boolean))].sort();
+        
+        // Filter data based on selected District Heads
+        const dataAfterDistrict = filters.districtHeadFilter.length > 0
+            ? allData.filter(item => filters.districtHeadFilter.includes(item.districtHead))
+            : allData;
+        const availableBranches = [...new Set(dataAfterDistrict.map(d => d.branch).filter(Boolean))].sort();
+
+        // Filter data based on selected Branches
+        const dataAfterBranch = filters.branchFilter.length > 0
+            ? dataAfterDistrict.filter(item => filters.branchFilter.includes(item.branch))
+            : dataAfterDistrict;
+        const availableSupervisors = [...new Set(dataAfterBranch.map(d => d.supervisor).filter(Boolean))].sort();
+
+        // Filter data based on selected Supervisors
+        const dataAfterSupervisor = filters.supervisorFilter.length > 0
+            ? dataAfterBranch.filter(item => filters.supervisorFilter.includes(item.supervisor))
+            : dataAfterBranch;
+        const availableCourses = [...new Set(dataAfterSupervisor.map(d => d.courseTitle).filter(Boolean))].sort();
+        const availableCourseTypes = [...new Set(dataAfterSupervisor.map(d => d.courseType).filter(Boolean))].sort();
+
+        return {
+            districtHeads: allDistrictHeads,
+            branches: availableBranches,
+            supervisors: availableSupervisors,
+            courses: availableCourses,
+            courseTypes: availableCourseTypes
+        };
+    }, [allData, filters.districtHeadFilter, filters.branchFilter, filters.supervisorFilter]);
+
+    useEffect(() => {
+        const newFilters = { ...filters };
+        let filtersChanged = false;
+
+        const cleanupFilter = (filterKey, validOptionsSet) => {
+            const currentSelection = newFilters[filterKey];
+            const cleanedSelection = currentSelection.filter(item => validOptionsSet.has(item));
+            if (cleanedSelection.length !== currentSelection.length) {
+                newFilters[filterKey] = cleanedSelection;
+                filtersChanged = true;
+            }
+        };
+
+        cleanupFilter('branchFilter', new Set(cascadingOptions.branches));
+        cleanupFilter('supervisorFilter', new Set(cascadingOptions.supervisors));
+        cleanupFilter('courseFilter', new Set(cascadingOptions.courses));
+        cleanupFilter('courseTypeFilter', new Set(cascadingOptions.courseTypes));
+
+        if (filtersChanged) {
+            setFilters(newFilters);
+        }
+    }, [cascadingOptions, filters]);
+
 
     const filteredData = useMemo(() => allData.filter(item => 
         (filters.branchFilter.length === 0 || filters.branchFilter.includes(item.branch)) &&
@@ -1146,7 +1215,7 @@ const Dashboard = () => {
             case 'leaderboard': return <Leaderboard data={filteredData} onTraineeSelect={handleSelectLearnerAndNavigate} />;
             case 'actionable-insights': return <ActionableInsights data={filteredData} allData={allData} onTraineeSelect={handleSelectLearnerAndNavigate} />;
             case 'branch-comparison': return <BranchComparison data={filteredData} allData={allData} filters={filters} setFilters={setFilters} />;
-            case 'comparison-tool': return <ComparisonTool allData={allData} options={filterOptions} />;
+            case 'comparison-tool': return <ComparisonTool allData={allData} options={cascadingOptions} />;
             case 'course-analysis': return <CourseAnalysis data={filteredData} filters={filters} setFilters={setFilters} />;
             case 'learner-performance': return <LearnerPerformance allData={allData} selectedEmail={selectedLearnerEmail} onLearnerSelect={setSelectedLearnerEmail} />;
             case 'trend-analysis': return <TrendAnalysis data={filteredData} />;
@@ -1163,9 +1232,14 @@ const Dashboard = () => {
                     <h1 className="text-2xl font-bold text-brand-dark dark:text-white">{sections.find(s => s.id === activeSection)?.name}</h1>
                     <div className="flex items-center space-x-2"><ExportCsvButton data={filteredData} fileName={`${activeSection}_data_export`} /><ExportButton elementRef={exportRef} fileName={activeSection} /><ThemeSwitcher /></div>
                 </header>
-                { !error && allData.length > 0 && activeSection !== 'comparison-tool' && <FilterPanel filters={filters} setFilters={setFilters} options={filterOptions} /> }
+                { usingSampleData && (
+                    <div className="bg-yellow-100 dark:bg-yellow-900/30 border-b border-yellow-400 dark:border-yellow-700 text-yellow-800 dark:text-yellow-200 px-4 py-2 text-sm text-center">
+                        <strong>Notice:</strong> Could not load live data. Displaying sample data instead.
+                    </div>
+                )}
+                { allData.length > 0 && activeSection !== 'comparison-tool' && <FilterPanel filters={filters} setFilters={setFilters} options={cascadingOptions} /> }
                 <div ref={exportRef} className="p-4 md:p-6 lg:p-8 flex-1 bg-gray-100 dark:bg-gray-900">
-                     {error ? <div className="text-center p-8 bg-red-50 dark:bg-red-900/20 border border-danger rounded-lg"><h2 className="text-xl font-bold text-danger mb-2">Data Loading Error</h2><p className="text-gray-700 dark:text-gray-300">{error}</p><p className="mt-2 text-sm">Please refer to the setup instructions in <code className="bg-gray-200 dark:bg-gray-700 p-1 rounded">index.tsx</code> to configure the Google Sheet URL.</p></div> : renderSection()}
+                     {allData.length === 0 && !loading ? <div className="text-center p-8 bg-red-50 dark:bg-red-900/20 border border-danger rounded-lg"><h2 className="text-xl font-bold text-danger mb-2">Data Loading Error</h2><p className="text-gray-700 dark:text-gray-300">Could not fetch live data and no sample data is available.</p><p className="mt-2 text-sm">Please check the network connection and the Google Sheet URL in the source code.</p></div> : renderSection()}
                 </div>
             </main>
         </div>
